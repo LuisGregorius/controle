@@ -1,10 +1,11 @@
-<!-- consulta.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Consulta de Estoque</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -80,12 +81,23 @@
   </div>
 
   <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyABgUETkTIYmCa49L45E-aVQ_KddOZzyVg",
+      authDomain: "controleestoque-591c5.firebaseapp.com",
+      databaseURL: "https://controleestoque-591c5-default-rtdb.firebaseio.com",
+      projectId: "controleestoque-591c5",
+      storageBucket: "controleestoque-591c5.appspot.com",
+      messagingSenderId: "726550257989",
+      appId: "1:726550257989:web:12f251080da43b146dde2c"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     const modelos = ["Camisa Olimpica", "Camisa Olimpica Manga Longa", "Camisa Olimpica Gola V", "Long Look", "Long Look Manga Longa", "Long Look Gola V", "Camisa Polo Masculina", "Camisa Polo Feminina", "Baby look", "Regata Masculina", "Regata Feminina", "Camisa Haglan", "Machão", "Camisa infantil", "Camisa infantil Manga Longa"];
     const cores = ["Preto", "Branco", "Azul Marinho", "Mescla", "Azul Royal", "Vermelho", "Pink", "Rosa BB", "Azul BB", "Verde Bandeira", "Verde Musgo", "Amarelo Ouro", "Amarelo BB"];
     const malhas = ["Algodão", "Poliester", "Piquet", "PV", "Sarja", "Micro Fibra", "Ribana"];
     const tamanhos = ["1","2","4","6","8","10","12","14","PP","P","M","G","GG","G1","G2","G3","SG"];
-
-    const estoque = JSON.parse(localStorage.getItem('estoque')) || [];
 
     function popularSelect(id, lista, placeholder) {
       const select = document.getElementById(id);
@@ -121,32 +133,38 @@
       const tbody = document.querySelector('#tabelaEstoque tbody');
       tbody.innerHTML = '';
 
-      estoque.forEach(item => {
-        if (
-          (filtroModelo === '' || item.modelo.toLowerCase() === filtroModelo) &&
-          (filtroCor === '' || item.cor.toLowerCase() === filtroCor) &&
-          (filtroMalha === '' || item.malha.toLowerCase() === filtroMalha) &&
-          (filtroTamanho === '' || item.tamanho.toLowerCase() === filtroTamanho)
-        ) {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${item.modelo}</td><td>${item.cor}</td><td>${item.tamanho}</td><td>${item.malha}</td><td>${item.quantidade}</td>`;
-          tbody.appendChild(tr);
-        }
+      db.ref('estoque').once('value', snapshot => {
+        snapshot.forEach(child => {
+          const item = child.val();
+          if (
+            (!filtroModelo || item.modelo.toLowerCase() === filtroModelo) &&
+            (!filtroCor || item.cor.toLowerCase() === filtroCor) &&
+            (!filtroMalha || item.malha.toLowerCase() === filtroMalha) &&
+            (!filtroTamanho || item.tamanho.toLowerCase() === filtroTamanho)
+          ) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${item.modelo}</td><td>${item.cor}</td><td>${item.tamanho}</td><td>${item.malha}</td><td>${item.quantidade}</td>`;
+            tbody.appendChild(tr);
+          }
+        });
       });
     }
 
     function exportarCSV() {
-      let csv = "Modelo,Cor,Tamanho,Tipo de Malha,Quantidade\n";
-      estoque.forEach(item => {
-        csv += `${item.modelo},${item.cor},${item.tamanho},${item.malha},${item.quantidade}\n`;
+      db.ref('estoque').once('value', snapshot => {
+        let csv = "Modelo,Cor,Tamanho,Tipo de Malha,Quantidade\n";
+        snapshot.forEach(child => {
+          const item = child.val();
+          csv += `${item.modelo},${item.cor},${item.tamanho},${item.malha},${item.quantidade}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'estoque_consulta.csv';
+        a.click();
+        URL.revokeObjectURL(url);
       });
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'estoque_consulta.csv';
-      a.click();
-      URL.revokeObjectURL(url);
     }
 
     window.onload = () => {
