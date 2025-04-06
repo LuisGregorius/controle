@@ -1,0 +1,165 @@
+<!-- consulta.html -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consulta de Estoque</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    .filtro-container, .tabela-container {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    select, button {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #1976d2;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0d47a1;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #1976d2;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h1>Consulta de Estoque</h1>
+
+  <div class="filtro-container">
+    <h3>Filtros</h3>
+    <select id="filtroModelo"></select>
+    <select id="filtroCor"></select>
+    <select id="filtroMalha"></select>
+    <select id="filtroTamanho"></select>
+    <button onclick="exportarCSV()">Exportar CSV</button>
+  </div>
+
+  <div class="tabela-container">
+    <h3>Estoque Disponível</h3>
+    <table id="tabelaEstoque">
+      <thead>
+        <tr>
+          <th>Modelo</th>
+          <th>Cor</th>
+          <th>Tamanho</th>
+          <th>Tipo de Malha</th>
+          <th>Quantidade</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const modelos = ["Camisa Olimpica", "Camisa Olimpica Manga Longa", "Camisa Olimpica Gola V", "Long Look", "Long Look Manga Longa", "Long Look Gola V", "Camisa Polo Masculina", "Camisa Polo Feminina", "Baby look", "Regata Masculina", "Regata Feminina", "Camisa Haglan", "Machão", "Camisa infantil", "Camisa infantil Manga Longa"];
+    const cores = ["Preto", "Branco", "Azul Marinho", "Mescla", "Azul Royal", "Vermelho", "Pink", "Rosa BB", "Azul BB", "Verde Bandeira", "Verde Musgo", "Amarelo Ouro", "Amarelo BB"];
+    const malhas = ["Algodão", "Poliester", "Piquet", "PV", "Sarja", "Micro Fibra", "Ribana"];
+    const tamanhos = ["1","2","4","6","8","10","12","14","PP","P","M","G","GG","G1","G2","G3","SG"];
+
+    const estoque = JSON.parse(localStorage.getItem('estoque')) || [];
+
+    function popularSelect(id, lista, placeholder) {
+      const select = document.getElementById(id);
+      select.innerHTML = '';
+      const placeholderOption = document.createElement('option');
+      placeholderOption.disabled = true;
+      placeholderOption.selected = true;
+      placeholderOption.hidden = true;
+      placeholderOption.textContent = placeholder;
+      placeholderOption.value = '';
+      select.appendChild(placeholderOption);
+
+      const todosOption = document.createElement('option');
+      todosOption.value = '';
+      todosOption.textContent = 'Todos';
+      select.appendChild(todosOption);
+
+      lista.forEach(op => {
+        const option = document.createElement('option');
+        option.value = option.textContent = op;
+        select.appendChild(option);
+      });
+
+      select.onchange = atualizarTabela;
+    }
+
+    function atualizarTabela() {
+      const filtroModelo = document.getElementById('filtroModelo').value.toLowerCase();
+      const filtroCor = document.getElementById('filtroCor').value.toLowerCase();
+      const filtroMalha = document.getElementById('filtroMalha').value.toLowerCase();
+      const filtroTamanho = document.getElementById('filtroTamanho').value.toLowerCase();
+
+      const tbody = document.querySelector('#tabelaEstoque tbody');
+      tbody.innerHTML = '';
+
+      estoque.forEach(item => {
+        if (
+          (filtroModelo === '' || item.modelo.toLowerCase() === filtroModelo) &&
+          (filtroCor === '' || item.cor.toLowerCase() === filtroCor) &&
+          (filtroMalha === '' || item.malha.toLowerCase() === filtroMalha) &&
+          (filtroTamanho === '' || item.tamanho.toLowerCase() === filtroTamanho)
+        ) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${item.modelo}</td><td>${item.cor}</td><td>${item.tamanho}</td><td>${item.malha}</td><td>${item.quantidade}</td>`;
+          tbody.appendChild(tr);
+        }
+      });
+    }
+
+    function exportarCSV() {
+      let csv = "Modelo,Cor,Tamanho,Tipo de Malha,Quantidade\n";
+      estoque.forEach(item => {
+        csv += `${item.modelo},${item.cor},${item.tamanho},${item.malha},${item.quantidade}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'estoque_consulta.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    window.onload = () => {
+      if (localStorage.getItem('role') !== 'usuario') {
+        alert('Acesso restrito. Redirecionando...');
+        window.location.href = 'login.html';
+      }
+      popularSelect('filtroModelo', modelos, 'Filtrar por modelo');
+      popularSelect('filtroCor', cores, 'Filtrar por cor');
+      popularSelect('filtroMalha', malhas, 'Filtrar por malha');
+      popularSelect('filtroTamanho', tamanhos, 'Filtrar por tamanho');
+      atualizarTabela();
+    }
+  </script>
+</body>
+</html>
