@@ -161,7 +161,7 @@
       const quantidade = parseInt(document.getElementById('quantidade').value);
       if (!modelo || !cor || !tamanho || !malha || isNaN(quantidade)) return alert("Preencha todos os campos corretamente.");
       const id = `${modelo}-${cor}-${tamanho}-${malha}`;
-      db.ref('estoque/' + id).once('value').then(snapshot => {
+      db.ref('estoque/' + id).get().then(snapshot => {
         const dados = snapshot.val() || { quantidade: 0 };
         db.ref('estoque/' + id).set({ modelo, cor, tamanho, malha, quantidade: dados.quantidade + quantidade }).then(() => {
           limparCampos(); atualizarTabela();
@@ -177,7 +177,7 @@
       const quantidade = parseInt(document.getElementById('quantidade').value);
       if (!modelo || !cor || !tamanho || !malha || isNaN(quantidade)) return alert("Preencha todos os campos corretamente.");
       const id = `${modelo}-${cor}-${tamanho}-${malha}`;
-      db.ref('estoque/' + id).once('value').then(snapshot => {
+      db.ref('estoque/' + id).get().then(snapshot => {
         const dados = snapshot.val();
         if (!dados || dados.quantidade < quantidade) return alert("Quantidade insuficiente.");
         db.ref('estoque/' + id).set({ ...dados, quantidade: dados.quantidade - quantidade }).then(() => {
@@ -187,17 +187,15 @@
     }
 
     function atualizarTabela() {
-      console.log("Atualizando tabela...");
       const tabela = document.querySelector('#tabelaEstoque tbody');
       tabela.innerHTML = '';
       const filtroModelo = document.getElementById('filtroModelo').value.toLowerCase();
       const filtroCor = document.getElementById('filtroCor').value.toLowerCase();
       const filtroMalha = document.getElementById('filtroMalha').value.toLowerCase();
       const filtroTamanho = document.getElementById('filtroTamanho').value.toLowerCase();
-      db.ref('estoque').once('value').then(snapshot => {
+      db.ref('estoque').once('value', snapshot => {
         snapshot.forEach(child => {
           const item = child.val();
-          console.log("Item encontrado:", item);
           if (
             (!filtroModelo || item.modelo.toLowerCase() === filtroModelo) &&
             (!filtroCor || item.cor.toLowerCase() === filtroCor) &&
@@ -219,7 +217,7 @@
     }
 
     function exportarCSV() {
-      db.ref('estoque').once('value').then(snapshot => {
+      db.ref('estoque').once('value', snapshot => {
         let csv = "Modelo,Cor,Tamanho,Tipo de Malha,Quantidade\n";
         snapshot.forEach(child => {
           const item = child.val();
@@ -236,11 +234,6 @@
     }
 
     window.onload = () => {
-      if (localStorage.getItem('role') !== 'admin') {
-        alert('Acesso restrito. Redirecionando...');
-        window.location.href = 'login.html';
-        return;
-      }
       popularSelect('modelo', modelos, 'Escolha o modelo');
       popularSelect('cor', cores, 'Escolha a cor');
       popularSelect('tamanho', tamanhos, 'Escolha o tamanho');
