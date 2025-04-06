@@ -3,104 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Controle de Estoque de Roupas (Admin)</title>
+  <title>Admin - Controle de Estoque</title>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f0f2f5;
-      margin: 0;
+      background-color: #eef2f7;
       padding: 20px;
+    }
+    .container {
+      background: #fff;
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     h1 {
       text-align: center;
       color: #333;
     }
-    .container {
-      max-width: 1200px;
-      margin: auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
     select, input, button {
+      margin: 10px 5px;
       padding: 10px;
-      margin: 5px;
       border-radius: 5px;
       border: 1px solid #ccc;
     }
-    button {
-      background-color: #4CAF50;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #45a049;
-    }
     table {
       width: 100%;
-      border-collapse: collapse;
       margin-top: 20px;
+      border-collapse: collapse;
     }
     th, td {
       padding: 10px;
-      border: 1px solid #ddd;
+      border: 1px solid #ccc;
       text-align: center;
     }
     th {
       background-color: #1976d2;
       color: white;
     }
-    .filtros {
-      margin: 20px 0;
-    }
-    .remove-btn {
-      background-color: #e53935;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    .remove-btn:hover {
-      background-color: #b71c1c;
-    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Controle de Estoque de Roupas (Admin)</h1>
+    <h1>Admin - Controle de Estoque</h1>
     <div>
-      <select id="modelo"></select>
-      <select id="cor"></select>
-      <select id="tamanho"></select>
-      <select id="malha"></select>
+      <select id="modelo"><option value="">Escolha o modelo</option></select>
+      <select id="cor"><option value="">Escolha a cor</option></select>
+      <select id="malha"><option value="">Escolha o tipo de malha</option></select>
+      <select id="tamanho"><option value="">Escolha o tamanho</option></select>
       <input type="number" id="quantidade" placeholder="Quantidade">
-      <button id="btnEntrada">Entrada</button>
-      <button id="btnSaida">Saída</button>
+      <button onclick="entradaEstoque()">Entrada</button>
+      <button onclick="saidaEstoque()">Saída</button>
       <button onclick="limparCampos()">Limpar</button>
     </div>
-    <div class="filtros">
-      <select id="filtroModelo"></select>
-      <select id="filtroCor"></select>
-      <select id="filtroMalha"></select>
-      <select id="filtroTamanho"></select>
-      <button onclick="exportarCSV()">Exportar CSV</button>
-    </div>
-    <table id="tabelaEstoque">
+    <table>
       <thead>
         <tr>
-          <th>Modelo</th>
-          <th>Cor</th>
-          <th>Tamanho</th>
-          <th>Tipo de Malha</th>
-          <th>Quantidade</th>
-          <th>Ações</th>
+          <th>Modelo</th><th>Cor</th><th>Malha</th><th>Tamanho</th><th>Quantidade</th><th>Ações</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody id="tabelaEstoque"></tbody>
     </table>
   </div>
   <script>
@@ -113,7 +78,6 @@
       messagingSenderId: "726550257989",
       appId: "1:726550257989:web:12f251080da43b146dde2c"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -122,128 +86,78 @@
     const malhas = ["Algodão", "Poliester", "Piquet", "PV", "Sarja", "Micro Fibra", "Ribana"];
     const tamanhos = ["1","2","4","6","8","10","12","14","PP","P","M","G","GG","G1","G2","G3","SG"];
 
-    function popularSelect(id, lista, placeholder, comTodos = false) {
+    function popularSelect(id, lista, placeholder) {
       const select = document.getElementById(id);
-      if (!select) return;
-      select.innerHTML = '';
-      const opt = document.createElement('option');
-      opt.disabled = true;
-      opt.selected = true;
-      opt.hidden = true;
-      opt.textContent = placeholder;
-      opt.value = '';
-      select.appendChild(opt);
-      if (comTodos) {
-        const todos = document.createElement('option');
-        todos.value = '';
-        todos.textContent = 'Todos';
-        select.appendChild(todos);
-      }
+      select.innerHTML = `<option value="">${placeholder}</option>`;
       lista.forEach(item => {
-        const option = document.createElement('option');
+        const option = document.createElement("option");
         option.value = item;
         option.textContent = item;
         select.appendChild(option);
       });
-      if (id.startsWith('filtro')) select.onchange = atualizarTabela;
     }
 
     function limparCampos() {
-      ['modelo','cor','tamanho','malha'].forEach(id => document.getElementById(id).selectedIndex = 0);
-      document.getElementById('quantidade').value = '';
+      ['modelo','cor','malha','tamanho','quantidade'].forEach(id => document.getElementById(id).value = '');
     }
 
-    function entradaItem() {
-      const modelo = document.getElementById('modelo').value;
-      const cor = document.getElementById('cor').value;
-      const tamanho = document.getElementById('tamanho').value;
-      const malha = document.getElementById('malha').value;
-      const quantidade = parseInt(document.getElementById('quantidade').value);
-      if (!modelo || !cor || !tamanho || !malha || isNaN(quantidade)) return alert("Preencha todos os campos corretamente.");
-      const id = `${modelo}-${cor}-${tamanho}-${malha}`;
-      db.ref('estoque/' + id).get().then(snapshot => {
-        const dados = snapshot.val() || { quantidade: 0 };
-        db.ref('estoque/' + id).set({ modelo, cor, tamanho, malha, quantidade: dados.quantidade + quantidade }).then(() => {
-          limparCampos(); atualizarTabela();
-        });
-      });
+    function entradaEstoque() {
+      atualizarEstoque(+document.getElementById('quantidade').value);
     }
 
-    function saidaItem() {
+    function saidaEstoque() {
+      atualizarEstoque(-document.getElementById('quantidade').value);
+    }
+
+    function atualizarEstoque(qtd) {
       const modelo = document.getElementById('modelo').value;
       const cor = document.getElementById('cor').value;
-      const tamanho = document.getElementById('tamanho').value;
       const malha = document.getElementById('malha').value;
-      const quantidade = parseInt(document.getElementById('quantidade').value);
-      if (!modelo || !cor || !tamanho || !malha || isNaN(quantidade)) return alert("Preencha todos os campos corretamente.");
-      const id = `${modelo}-${cor}-${tamanho}-${malha}`;
-      db.ref('estoque/' + id).get().then(snapshot => {
-        const dados = snapshot.val();
-        if (!dados || dados.quantidade < quantidade) return alert("Quantidade insuficiente.");
-        db.ref('estoque/' + id).set({ ...dados, quantidade: dados.quantidade - quantidade }).then(() => {
-          limparCampos(); atualizarTabela();
-        });
+      const tamanho = document.getElementById('tamanho').value;
+      if (!modelo || !cor || !malha || !tamanho || !qtd) return alert('Preencha todos os campos.');
+      const id = `${modelo}_${cor}_${malha}_${tamanho}`;
+      const ref = db.ref('estoque/' + id);
+      ref.once('value').then(snapshot => {
+        const atual = snapshot.val();
+        const novaQtd = (atual ? atual.quantidade : 0) + qtd;
+        if (novaQtd < 0) return alert('Estoque insuficiente.');
+        ref.set({ modelo, cor, malha, tamanho, quantidade: novaQtd });
+        atualizarTabela();
+        limparCampos();
       });
     }
 
     function atualizarTabela() {
-      const tabela = document.querySelector('#tabelaEstoque tbody');
+      const tabela = document.getElementById('tabelaEstoque');
       tabela.innerHTML = '';
-      const filtroModelo = document.getElementById('filtroModelo').value.toLowerCase();
-      const filtroCor = document.getElementById('filtroCor').value.toLowerCase();
-      const filtroMalha = document.getElementById('filtroMalha').value.toLowerCase();
-      const filtroTamanho = document.getElementById('filtroTamanho').value.toLowerCase();
-      db.ref('estoque').once('value', snapshot => {
+      db.ref('estoque').once('value').then(snapshot => {
         snapshot.forEach(child => {
           const item = child.val();
-          if (
-            (!filtroModelo || item.modelo.toLowerCase() === filtroModelo) &&
-            (!filtroCor || item.cor.toLowerCase() === filtroCor) &&
-            (!filtroMalha || item.malha.toLowerCase() === filtroMalha) &&
-            (!filtroTamanho || item.tamanho.toLowerCase() === filtroTamanho)
-          ) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${item.modelo}</td><td>${item.cor}</td><td>${item.tamanho}</td><td>${item.malha}</td><td>${item.quantidade}</td><td><button class='remove-btn' onclick='removerItem("${child.key}")'>Remover</button></td>`;
-            tabela.appendChild(tr);
-          }
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${item.modelo}</td>
+            <td>${item.cor}</td>
+            <td>${item.malha}</td>
+            <td>${item.tamanho}</td>
+            <td>${item.quantidade}</td>
+            <td><button onclick="removerItem('${child.key}')">Remover</button></td>
+          `;
+          tabela.appendChild(tr);
         });
       });
     }
 
     function removerItem(id) {
-      if (confirm("Tem certeza que deseja remover este item do estoque?")) {
+      if (confirm('Tem certeza que deseja remover este item do estoque?')) {
         db.ref('estoque/' + id).remove().then(atualizarTabela);
       }
-    }
-
-    function exportarCSV() {
-      db.ref('estoque').once('value', snapshot => {
-        let csv = "Modelo,Cor,Tamanho,Tipo de Malha,Quantidade\n";
-        snapshot.forEach(child => {
-          const item = child.val();
-          csv += `${item.modelo},${item.cor},${item.tamanho},${item.malha},${item.quantidade}\n`;
-        });
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'estoque.csv';
-        a.click();
-        URL.revokeObjectURL(url);
-      });
     }
 
     window.onload = () => {
       popularSelect('modelo', modelos, 'Escolha o modelo');
       popularSelect('cor', cores, 'Escolha a cor');
+      popularSelect('malha', malhas, 'Escolha o tipo de malha');
       popularSelect('tamanho', tamanhos, 'Escolha o tamanho');
-      popularSelect('malha', malhas, 'Escolha a malha');
-      popularSelect('filtroModelo', modelos, 'Filtrar por modelo', true);
-      popularSelect('filtroCor', cores, 'Filtrar por cor', true);
-      popularSelect('filtroMalha', malhas, 'Filtrar por malha', true);
-      popularSelect('filtroTamanho', tamanhos, 'Filtrar por tamanho', true);
-      document.getElementById('btnEntrada').onclick = entradaItem;
-      document.getElementById('btnSaida').onclick = saidaItem;
       atualizarTabela();
     }
   </script>
